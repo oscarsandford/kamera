@@ -1,0 +1,1 @@
+void adjust_contrast_and_brightness(char *imgpath, float alpha, float bbeta);
