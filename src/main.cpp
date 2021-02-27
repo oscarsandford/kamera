@@ -1,68 +1,132 @@
-// wxWidgets "Hello world" Program
-// For compilers that support precompilation, includes "wx/wx.h".
-#include <wx/wxprec.h>
-#ifndef WX_PRECOMP
 #include <wx/wx.h>
-#endif
-class MyApp : public wxApp
-{
-public:
-    virtual bool OnInit();
-};
-class MyFrame : public wxFrame
-{
-public:
-    MyFrame(const wxString &title, const wxPoint &pos, const wxSize &size);
+#include <wx/filedlg.h>
+#include <wx/wfstream.h>
+#include <kkamera.h>
 
-private:
-    void OnHello(wxCommandEvent &event);
-    void OnExit(wxCommandEvent &event);
-    void OnAbout(wxCommandEvent &event);
-    wxDECLARE_EVENT_TABLE();
+cv::Mat current_image;
+
+// Class definitions
+class Kamera : public wxApp
+{
+	public:
+		virtual bool OnInit();
 };
-enum
+class KFrame : public wxFrame
 {
-    ID_Hello = 1
+	public:
+		KFrame(const wxString &title, const wxPoint &pos, const wxSize &size);
+	// Frame events and their function prototypes.
+	private:
+		void OnImport(wxCommandEvent &WXUNUSED(e));
+		void OnExport(wxCommandEvent &WXUNUSED(e));
+		void OnExit(wxCommandEvent &WXUNUSED(e));
+		wxDECLARE_EVENT_TABLE();
 };
-wxBEGIN_EVENT_TABLE(MyFrame, wxFrame)
-    EVT_MENU(ID_Hello, MyFrame::OnHello)
-        EVT_MENU(wxID_EXIT, MyFrame::OnExit)
-            EVT_MENU(wxID_ABOUT, MyFrame::OnAbout)
-                wxEND_EVENT_TABLE()
-                    wxIMPLEMENT_APP(MyApp);
-bool MyApp::OnInit()
+
+// Program entry point.
+// Set up events and start up app.
+wxBEGIN_EVENT_TABLE(KFrame, wxFrame)
+	EVT_MENU(1, KFrame::OnImport)
+	EVT_MENU(2, KFrame::OnExport)
+	EVT_MENU(wxID_EXIT, KFrame::OnExit)
+wxEND_EVENT_TABLE()
+wxIMPLEMENT_APP(Kamera);
+
+// Initializes here.
+bool Kamera::OnInit()
 {
-    MyFrame *frame = new MyFrame("Hello World", wxPoint(50, 50), wxSize(450, 340));
-    frame->Show(true);
-    return true;
+	KFrame *kf = new KFrame("Kamera Studio", wxDefaultPosition, wxDefaultSize);
+	kf->Show(true);
+	return true;
 }
-MyFrame::MyFrame(const wxString &title, const wxPoint &pos, const wxSize &size)
-    : wxFrame(NULL, wxID_ANY, title, pos, size)
+
+KFrame::KFrame(const wxString &title, const wxPoint &pos, const wxSize &size) 
+	: wxFrame(nullptr, wxID_ANY, title, pos, size)
 {
-    wxMenu *menuFile = new wxMenu;
-    menuFile->Append(ID_Hello, "&Hello...\tCtrl-H",
-                     "Help string shown in status bar for this menu item");
-    menuFile->AppendSeparator();
-    menuFile->Append(wxID_EXIT);
-    wxMenu *menuHelp = new wxMenu;
-    menuHelp->Append(wxID_ABOUT);
-    wxMenuBar *menuBar = new wxMenuBar;
-    menuBar->Append(menuFile, "&File");
-    menuBar->Append(menuHelp, "&Help");
-    SetMenuBar(menuBar);
-    CreateStatusBar();
-    SetStatusText("Welcome to wxWidgets!");
+	// Top panel (where the image is previewed)
+	wxPanel *top_panel = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(600,200));
+	top_panel->SetBackgroundColour(wxColor(150, 200, 150));
+
+	// Bottom panel (where the contrast, brightness, etc controls are)
+	wxPanel *bottom_panel = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(600,200));
+	bottom_panel->SetBackgroundColour(wxColor(200, 150, 150));
+
+	wxBoxSizer *sizer = new wxBoxSizer(wxVERTICAL);
+	// Top panel has twice proportion of bottom panel, margin 10
+	sizer->Add(top_panel, 2, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 8);
+	sizer->Add(bottom_panel, 1, wxEXPAND | wxALL, 8);
+	this->SetSizerAndFit(sizer);
+
+	// Menus and menu bar
+	wxMenu *file_menu = new wxMenu;
+	file_menu->Append(1, "Import JPG");
+	file_menu->Append(2, "Export as JPG");
+	file_menu->AppendSeparator();
+	file_menu->Append(wxID_EXIT);
+
+	wxMenu *help_menu = new wxMenu;
+	
+	wxMenuBar *menu_bar = new wxMenuBar;
+	menu_bar->Append(file_menu, "File");
+	menu_bar->Append(help_menu, "Help");
+
+	SetMenuBar(menu_bar);
+	CreateStatusBar();
+	SetStatusText("Kamera (Dev)");
 }
-void MyFrame::OnExit(wxCommandEvent &event)
+
+// Kill the app when "Quit" selected.
+void KFrame::OnExit(wxCommandEvent &WXUNUSED(e))
 {
-    Close(true);
+	Close(true);
 }
-void MyFrame::OnAbout(wxCommandEvent &event)
+
+// Fired when "Import" selected in "File" menu dropdown.
+void KFrame::OnImport(wxCommandEvent &WXUNUSED(e))
 {
-    wxMessageBox("This is a wxWidgets' Hello world sample",
-                 "About Hello World", wxOK | wxICON_INFORMATION);
+	// Open dialogue for user to select a file to import.
+	wxFileDialog importFileDialog(this, 
+		_("Open JPG file"), "", "", "JPG files (*.jpg)|*.jpg", 
+		wxFD_OPEN | wxFD_FILE_MUST_EXIST
+	);
+	if (importFileDialog.ShowModal() == wxID_CANCEL) {
+		return;
+	}
+	// Check the file path defined by the user in the dialog
+	wxFileInputStream input_stream(importFileDialog.GetPath());
+	if (!input_stream.IsOk()) {
+		wxLogError("Cannot open %s", importFileDialog.GetPath());
+		return;
+	}
+	// Derive the C string of the path.
+	char path[1024];
+	strncpy(path, (const char *)importFileDialog.GetPath().mb_str(wxConvUTF8), 1023);
+
+	// Call function to create the image Mat by path.
+	current_image = import_image(path);
 }
-void MyFrame::OnHello(wxCommandEvent &event)
+
+// Fired when "Export" selected in "File" menu dropdown.
+void KFrame::OnExport(wxCommandEvent &WXUNUSED(e))
 {
-    wxLogMessage("Hello world from wxWidgets!");
+	// Open dialogue for user to export current file.
+	wxFileDialog exportFileDialog(this, 
+		_("Save image as JPG"), "", "", "JPG files (*.jpg)|*.jpg", 
+		wxFD_SAVE | wxFD_OVERWRITE_PROMPT
+	);
+	if (exportFileDialog.ShowModal() == wxID_CANCEL) {
+		return;
+	}
+	// Check the file path defined by the user in the dialog.
+	wxFileOutputStream output_stream(exportFileDialog.GetPath());
+	if (!output_stream.IsOk()) {
+		wxLogError("Cannot save to %s", exportFileDialog.GetPath());
+		return;
+	}
+	// Derive the C string of the path.
+	char path[1024];
+	strncpy(path, (const char *)exportFileDialog.GetPath().mb_str(wxConvUTF8), 1023);
+
+	// Call function to export the image by path.
+	export_image(current_image, path);
 }

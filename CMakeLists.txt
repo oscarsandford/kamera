@@ -14,7 +14,6 @@ set(STAGED_INSTALL_PREFIX ${CMAKE_BINARY_DIR}/staged)
 add_subdirectory(libraries)
 
 
-
 include(ExternalProject)
 ExternalProject_Add(${PROJECT_NAME}_core
 	DEPENDS 
