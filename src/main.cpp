@@ -61,21 +61,34 @@ KFrame::KFrame(const wxString &title, const wxPoint &pos, const wxSize &size)
 
 	// Control slider for all the adjustments
 	wxBoxSizer *control_sizer = new wxBoxSizer(wxHORIZONTAL);
-	// Sliders. SL means slider, so horizontal and labeled.
-	KFrame::sliders[CONTRAST] = new wxSlider(bottom_panel, wxID_ANY, 10, 1, 100, wxDefaultPosition, wxSize(100,100), wxSL_HORIZONTAL | wxSL_LABELS);
-	KFrame::sliders[BRIGHTNESS] = new wxSlider(bottom_panel, wxID_ANY, 10, 1, 100, wxDefaultPosition, wxSize(100,100), wxSL_HORIZONTAL | wxSL_LABELS);
-	// Add sliders to control sizer
-	control_sizer->Add(KFrame::sliders[CONTRAST], 1, wxALIGN_CENTER_HORIZONTAL | wxLEFT, 20);
-	control_sizer->Add(KFrame::sliders[BRIGHTNESS], 1, wxALIGN_CENTER_HORIZONTAL | wxRIGHT, 20);
+	// Containers for sliders and respective text labels
+	wxBoxSizer *contrast_sizer = new wxBoxSizer(wxVERTICAL);
+	wxBoxSizer *brightness_sizer = new wxBoxSizer(wxVERTICAL);
+
+	// Sliders and text.
+	KFrame::sliders[CONTRAST] = new wxSlider(bottom_panel, wxID_ANY, 10, 1, 100, wxDefaultPosition, wxSize(100,100), wxSL_HORIZONTAL | wxSL_VALUE_LABEL);
+	wxStaticText *txt1 = new wxStaticText(bottom_panel, wxID_ANY, "Contrast", wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER);
+	KFrame::sliders[BRIGHTNESS] = new wxSlider(bottom_panel, wxID_ANY, 10, 1, 100, wxDefaultPosition, wxSize(100,100), wxSL_HORIZONTAL | wxSL_VALUE_LABEL);
+	wxStaticText *txt2 = new wxStaticText(bottom_panel, wxID_ANY, "Brightness", wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER);
+
+	// Add sliders and labels to control sizer
+	contrast_sizer->Add(txt1, 0, wxALIGN_CENTER_HORIZONTAL);
+	contrast_sizer->Add(KFrame::sliders[CONTRAST], 1, wxALIGN_CENTER_HORIZONTAL | wxLEFT | wxRIGHT, 10);
+	control_sizer->Add(contrast_sizer, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
+
+	brightness_sizer->Add(txt2, 0, wxALIGN_CENTER_HORIZONTAL);
+	brightness_sizer->Add(KFrame::sliders[BRIGHTNESS], 1, wxALIGN_CENTER_HORIZONTAL | wxLEFT | wxRIGHT, 10);
+	control_sizer->Add(brightness_sizer, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
+	
 	// Bind slider event handlers
 	KFrame::sliders[CONTRAST]->Bind(wxEVT_SLIDER, &KFrame::OnContrastSliderMove, this);
 	KFrame::sliders[BRIGHTNESS]->Bind(wxEVT_SLIDER, &KFrame::OnBrightnessSliderMove, this);
-	// Set panel's sizer to the control sizer
+	// Finally set panel's sizer to the control sizer
 	bottom_panel->SetSizer(control_sizer);
 
 	// Main sizer (container)
 	wxBoxSizer *sizer = new wxBoxSizer(wxVERTICAL);
-	// Add the panels to the main container.
+	// Add the main panels to the main container.
 	// (Top panel has twice proportion of bottom panel, margin 8.)
 	sizer->Add(top_panel, 2, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 8);
 	sizer->Add(bottom_panel, 1, wxEXPAND | wxALL, 8);

@@ -1,6 +1,6 @@
 #include <opencv2/opencv.hpp>
 
-// Some constants to clearly index array of sliders
+// Constants to clarify indexing of an array of sliders
 #define SLIDER_COUNT 2
 #define CONTRAST 0
 #define BRIGHTNESS 1
