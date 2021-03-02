@@ -37,8 +37,7 @@ Mat import_image(char *imgpath)
 		std::cout << "No image data." << std::endl;
 		return Mat{};	
 	}
-	Mat result = adjust_contrast_and_brightness(image, 0.5, 80);
-	return result;
+	return image;
 }
 
 // Write a Mat image to the path defined by imgpath.

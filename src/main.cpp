@@ -3,7 +3,6 @@
 #include <wx/wfstream.h>
 #include <kkamera.h>
 
-cv::Mat current_image;
 
 // Class definitions
 class Kamera : public wxApp
@@ -15,11 +14,18 @@ class KFrame : public wxFrame
 {
 	public:
 		KFrame(const wxString &title, const wxPoint &pos, const wxSize &size);
-	// Frame events and their function prototypes.
+		// Hold onto the imported image for edits and exports.
+		// Should try to make this not a class-scope variable later.
+		cv::Mat current_image;
+		// I can't figure out how to get the value of the slider from the wxCommandEvent
+		// passed into its handler, so a class-wide array of sliders is a temporary fix.
+		wxSlider *sliders[SLIDER_COUNT];
 	private:
-		void OnImport(wxCommandEvent &WXUNUSED(e));
-		void OnExport(wxCommandEvent &WXUNUSED(e));
-		void OnExit(wxCommandEvent &WXUNUSED(e));
+		void OnImport(wxCommandEvent &);
+		void OnExport(wxCommandEvent &);
+		void OnExit(wxCommandEvent &);
+		void OnContrastSliderMove(wxCommandEvent &);
+		void OnBrightnessSliderMove(wxCommandEvent &);
 		wxDECLARE_EVENT_TABLE();
 };
 
@@ -29,6 +35,8 @@ wxBEGIN_EVENT_TABLE(KFrame, wxFrame)
 	EVT_MENU(1, KFrame::OnImport)
 	EVT_MENU(2, KFrame::OnExport)
 	EVT_MENU(wxID_EXIT, KFrame::OnExit)
+	EVT_SLIDER(wxID_ANY, KFrame::OnContrastSliderMove)
+	EVT_SLIDER(wxID_ANY, KFrame::OnBrightnessSliderMove)
 wxEND_EVENT_TABLE()
 wxIMPLEMENT_APP(Kamera);
 
@@ -47,12 +55,28 @@ KFrame::KFrame(const wxString &title, const wxPoint &pos, const wxSize &size)
 	wxPanel *top_panel = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(600,200));
 	top_panel->SetBackgroundColour(wxColor(150, 200, 150));
 
-	// Bottom panel (where the contrast, brightness, etc controls are)
+	// Bottom panel (where the contrast, brightness, and other controls are)
 	wxPanel *bottom_panel = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(600,200));
 	bottom_panel->SetBackgroundColour(wxColor(200, 150, 150));
 
+	// Control slider for all the adjustments
+	wxBoxSizer *control_sizer = new wxBoxSizer(wxHORIZONTAL);
+	// Sliders. SL means slider, so horizontal and labeled.
+	KFrame::sliders[CONTRAST] = new wxSlider(bottom_panel, wxID_ANY, 10, 1, 100, wxDefaultPosition, wxSize(100,100), wxSL_HORIZONTAL | wxSL_LABELS);
+	KFrame::sliders[BRIGHTNESS] = new wxSlider(bottom_panel, wxID_ANY, 10, 1, 100, wxDefaultPosition, wxSize(100,100), wxSL_HORIZONTAL | wxSL_LABELS);
+	// Add sliders to control sizer
+	control_sizer->Add(KFrame::sliders[CONTRAST], 1, wxALIGN_CENTER_HORIZONTAL | wxLEFT, 20);
+	control_sizer->Add(KFrame::sliders[BRIGHTNESS], 1, wxALIGN_CENTER_HORIZONTAL | wxRIGHT, 20);
+	// Bind slider event handlers
+	KFrame::sliders[CONTRAST]->Bind(wxEVT_SLIDER, &KFrame::OnContrastSliderMove, this);
+	KFrame::sliders[BRIGHTNESS]->Bind(wxEVT_SLIDER, &KFrame::OnBrightnessSliderMove, this);
+	// Set panel's sizer to the control sizer
+	bottom_panel->SetSizer(control_sizer);
+
+	// Main sizer (container)
 	wxBoxSizer *sizer = new wxBoxSizer(wxVERTICAL);
-	// Top panel has twice proportion of bottom panel, margin 10
+	// Add the panels to the main container.
+	// (Top panel has twice proportion of bottom panel, margin 8.)
 	sizer->Add(top_panel, 2, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 8);
 	sizer->Add(bottom_panel, 1, wxEXPAND | wxALL, 8);
 	this->SetSizerAndFit(sizer);
@@ -65,7 +89,8 @@ KFrame::KFrame(const wxString &title, const wxPoint &pos, const wxSize &size)
 	file_menu->Append(wxID_EXIT);
 
 	wxMenu *help_menu = new wxMenu;
-	
+	// TODO: make a help popup with some tips on how to do things.
+
 	wxMenuBar *menu_bar = new wxMenuBar;
 	menu_bar->Append(file_menu, "File");
 	menu_bar->Append(help_menu, "Help");
@@ -103,7 +128,7 @@ void KFrame::OnImport(wxCommandEvent &WXUNUSED(e))
 	strncpy(path, (const char *)importFileDialog.GetPath().mb_str(wxConvUTF8), 1023);
 
 	// Call function to create the image Mat by path.
-	current_image = import_image(path);
+	KFrame::current_image = import_image(path);
 }
 
 // Fired when "Export" selected in "File" menu dropdown.
@@ -127,6 +152,29 @@ void KFrame::OnExport(wxCommandEvent &WXUNUSED(e))
 	char path[1024];
 	strncpy(path, (const char *)exportFileDialog.GetPath().mb_str(wxConvUTF8), 1023);
 
+	// Get the current values of the style sliders.
+	float raw = (float)KFrame::sliders[CONTRAST]->GetValue();
+	float cv = (raw/100)*3;
+	float bv = (int)KFrame::sliders[BRIGHTNESS]->GetValue();
+	KFrame::current_image = adjust_contrast_and_brightness(KFrame::current_image, cv, bv);
 	// Call function to export the image by path.
 	export_image(current_image, path);
+}
+
+// These event handlers are pretty unnecessary because I have the sliders present across 
+// the scope of the class. They're still here because I may come up with another solution.
+
+// Fired when the contrast slider is adjusted.
+void KFrame::OnContrastSliderMove(wxCommandEvent &e) 
+{
+	int raw = (int)KFrame::sliders[CONTRAST]->GetValue();
+	float contrast_value = ((float)raw/100)*3;
+	std::cout << "contrast slider: " << contrast_value << std::endl;
+}
+
+// Fired when the contrast slider is adjusted.
+void KFrame::OnBrightnessSliderMove(wxCommandEvent &e) 
+{
+	float brightness_value = (float)KFrame::sliders[BRIGHTNESS]->GetValue();
+	std::cout << "brightness slider: " << brightness_value << std::endl;
 }
