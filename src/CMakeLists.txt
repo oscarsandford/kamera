@@ -19,7 +19,8 @@ include(${wxWidgets_USE_FILE})
 
 # Source codes
 set(SRCS 
-	kkamera.cpp
+	edit.cpp
+	options.cpp
 	main.cpp
 )
 

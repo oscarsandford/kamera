@@ -1,7 +1,8 @@
-#include <wx/wx.h>
+// The good stuff.
+#include <editor.h>
+
 #include <wx/filedlg.h>
 #include <wx/wfstream.h>
-#include <kkamera.h>
 // Need this for strlen and strstr.
 #include <cstring>
 
@@ -21,6 +22,7 @@ class KFrame : public wxFrame
 	public:
 		KFrame(const wxString &title, const wxPoint &, const wxSize &);
 		wxSlider *sliders[SLIDER_COUNT];
+		float slider_values[SLIDER_COUNT];
 	private:
 		void OnImport(wxCommandEvent &);
 		void OnExport(wxCommandEvent &);
@@ -242,12 +244,12 @@ void KFrame::OnImport(wxCommandEvent &WXUNUSED(e))
 		wxLogError("Cannot open %s", importFileDialog.GetPath());
 		return;
 	}
-	// Derive the C string of the path.
+	// Derive the C string of the path. Might not be the safest..
 	char path[1024];
 	strncpy(path, (const char *)importFileDialog.GetPath().mb_str(wxConvUTF8), 1023);
 
 	// Call function to create the image Mat by path.
-	editor_preview->img_mat = kk_import_image(path);
+	editor_preview->img_mat = KMR_import(path);
 
 	// Bitmap type based on file extension
 	// TODO: Add support for png files. This will depend how how well I can get 
@@ -282,17 +284,14 @@ void KFrame::OnExport(wxCommandEvent &WXUNUSED(e))
 		wxLogError("Cannot save to %s", exportFileDialog.GetPath());
 		return;
 	}
-	// Derive the C string of the path.
+	// Derive the C string of the path. Might not be the safest..
 	char path[1024];
 	strncpy(path, (const char *)exportFileDialog.GetPath().mb_str(wxConvUTF8), 1023);
 
-	// Get the current values of the style sliders.
-	float raw = (int)KFrame::sliders[CONTRAST]->GetValue();
-	float cv = ((float)raw/100)*3;
-	float bv = (int)KFrame::sliders[BRIGHTNESS]->GetValue();
-	editor_preview->img_mat = kk_adjust_contrast_and_brightness(editor_preview->img_mat, cv, bv);
+	// Update the imported Mat object based on current slider values.
+	editor_preview->img_mat = KMR_adjust(editor_preview->img_mat, slider_values);
 	// Call function to export the image by path.
-	kk_export_image(editor_preview->img_mat, path);
+	KMR_export(editor_preview->img_mat, path);
 }
 
 // These event handlers are here for when I want to make calls to the adjustment methods.
@@ -301,14 +300,16 @@ void KFrame::OnExport(wxCommandEvent &WXUNUSED(e))
 // Fired when the contrast slider is adjusted.
 void KFrame::OnContrastSliderMove(wxCommandEvent &WXUNUSED(e)) 
 {
-	int raw = (int)KFrame::sliders[CONTRAST]->GetValue();
-	float contrast_value = ((float)raw/100)*3;
-	std::cout << "contrast slider: " << contrast_value << std::endl;
+	// Set new slider value
+	int raw_obj_val = (int)KFrame::sliders[CONTRAST]->GetValue();
+	slider_values[CONTRAST] = ((float)raw_obj_val/100)*3;
+	std::cout << "contrast slider: " << slider_values[CONTRAST] << std::endl;
 }
 
 // Fired when the contrast slider is adjusted.
 void KFrame::OnBrightnessSliderMove(wxCommandEvent &WXUNUSED(e)) 
 {
-	float brightness_value = (float)KFrame::sliders[BRIGHTNESS]->GetValue();
-	std::cout << "brightness slider: " << brightness_value << std::endl;
+	// Set new slider value
+	slider_values[BRIGHTNESS] = (float)KFrame::sliders[BRIGHTNESS]->GetValue();
+	std::cout << "brightness slider: " << slider_values[BRIGHTNESS] << std::endl;
 }
