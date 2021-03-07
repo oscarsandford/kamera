@@ -1,68 +1,23 @@
-// The good stuff.
-#include <editor.h>
-
+#include <kamera.h>
+// Other wxWidgets libraries required for import/export GUI.
 #include <wx/filedlg.h>
 #include <wx/wfstream.h>
 // Need this for strlen and strstr.
 #include <cstring>
 
-
-// TODO: split classes and functionality apart
-// into separate source code files, then include them
-// in this main.cpp, which serves to initialize only.
-
-// Class definitions
+// Main app class definition.
 class Kamera : public wxApp
 {
 	public:
 		virtual bool OnInit();
 };
-class KFrame : public wxFrame
-{
-	public:
-		KFrame(const wxString &title, const wxPoint &, const wxSize &);
-		wxSlider *sliders[SLIDER_COUNT];
-		float slider_values[SLIDER_COUNT];
-	private:
-		void OnImport(wxCommandEvent &);
-		void OnExport(wxCommandEvent &);
-		void OnExit(wxCommandEvent &);
-		void OnContrastSliderMove(wxCommandEvent &);
-		void OnBrightnessSliderMove(wxCommandEvent &);
-		wxDECLARE_EVENT_TABLE();
-};
-class KPreview : public wxPanel 
-{
-	public:
-		KPreview(KFrame *, wxString file, wxBitmapType format);
-		wxImage img_wxobj;
-		wxBitmap img_bitmap;
-		cv::Mat img_mat;
-		int width, height;
-		void LoadNewPreviewImage(wxString file, wxBitmapType format);
-		void ForceRender();
-		wxDECLARE_EVENT_TABLE();
-	private:
-		void OnPaintEvent(wxPaintEvent &);
-		void OnPreviewResize(wxSizeEvent &);
-		// DC means device context, for rendering the preview image.
-		void RenderPreview(wxDC &);
-};
 
-// A silly fix, but I need to get the import method in KFrame to call a method 
-// that belonds to KPreview, and above all initialize it in the KFrame constructor.
-// I'll try to come back to this, or just redesign the two classes entirely.
-KPreview *editor_preview;
-
-
-// Program entry point.
-// Set up event tables for classes and start up app.
+// Program entry point. Event tables and implement (initialize).
 wxBEGIN_EVENT_TABLE(KFrame, wxFrame)
 	EVT_MENU(1, KFrame::OnImport)
 	EVT_MENU(2, KFrame::OnExport)
 	EVT_MENU(wxID_EXIT, KFrame::OnExit)
-	EVT_SLIDER(wxID_ANY, KFrame::OnContrastSliderMove)
-	EVT_SLIDER(wxID_ANY, KFrame::OnBrightnessSliderMove)
+	EVT_SLIDER(wxID_ANY, KFrame::OnSliderMove)
 wxEND_EVENT_TABLE()
 wxBEGIN_EVENT_TABLE(KPreview, wxPanel)
 	EVT_PAINT(KPreview::OnPaintEvent)
@@ -79,6 +34,11 @@ bool Kamera::OnInit()
 	kf->Show(true);
 	return true;
 }
+
+// A silly fix, but I need to get the import method in KFrame to call a method 
+// that belonds to KPreview, and above all initialize it in the KFrame constructor.
+// I'll try to come back to this, or just redesign the two classes entirely.
+KPreview *editor_preview;
 
 
 KPreview::KPreview(KFrame *parent, wxString file, wxBitmapType format) 
@@ -160,38 +120,41 @@ KFrame::KFrame(const wxString &title, const wxPoint &pos, const wxSize &size)
 	preview_sizer->Add(editor_preview, 1, wxALIGN_CENTER_HORIZONTAL | wxEXPAND, 5);
 	top_panel->SetSizer(preview_sizer);
 
-
 	// -> Bottom panel (where the contrast, brightness, and other controls are)
 	wxPanel *bottom_panel = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(600,200));
 	bottom_panel->SetBackgroundColour(wxColor(200, 150, 150));
 
-	// Control slider for all the adjustments
+	// Control slider for all the adjustment sliders
 	wxBoxSizer *control_sizer = new wxBoxSizer(wxHORIZONTAL);
-	// Containers for sliders and respective text labels
-	wxBoxSizer *contrast_sizer = new wxBoxSizer(wxVERTICAL);
-	wxBoxSizer *brightness_sizer = new wxBoxSizer(wxVERTICAL);
+	
+	// Arrays for adjustment slider's repective text and sizer
+	wxStaticText *wxlabels[SLIDER_COUNT];
+	wxBoxSizer *slider_sizers[SLIDER_COUNT];
 
-	// Sliders and text.
-	KFrame::sliders[CONTRAST] = new wxSlider(bottom_panel, wxID_ANY, 10, 1, 100, wxDefaultPosition, wxSize(100,100), wxSL_HORIZONTAL | wxSL_VALUE_LABEL);
-	wxStaticText *txt1 = new wxStaticText(bottom_panel, wxID_ANY, "Contrast", wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER);
-	KFrame::sliders[BRIGHTNESS] = new wxSlider(bottom_panel, wxID_ANY, 10, 1, 100, wxDefaultPosition, wxSize(100,100), wxSL_HORIZONTAL | wxSL_VALUE_LABEL);
-	wxStaticText *txt2 = new wxStaticText(bottom_panel, wxID_ANY, "Brightness", wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER);
+	// Make vertical sliders for each adjustment that go from 1-100, label them with KMR labels defined in kamera.h
+	for (int i = 0; i < SLIDER_COUNT; i++) 
+	{
+		KFrame::sliders[i] = new wxSlider(bottom_panel, wxID_ANY, 10, 1, 100, wxDefaultPosition, wxSize(100,100), wxSL_HORIZONTAL | wxSL_VALUE_LABEL);
+		wxlabels[i] = new wxStaticText(bottom_panel, wxID_ANY, KMR_slider_labels[i], wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER);
+	}
 
 	// Add sliders and labels to control sizer
-	contrast_sizer->Add(txt1, 0, wxALIGN_CENTER_HORIZONTAL);
-	contrast_sizer->Add(KFrame::sliders[CONTRAST], 1, wxALIGN_CENTER_HORIZONTAL | wxLEFT | wxRIGHT, 10);
-	control_sizer->Add(contrast_sizer, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
+	for (int i = 0; i < SLIDER_COUNT; i++) 
+	{
+		slider_sizers[i] = new wxBoxSizer(wxVERTICAL);
+		slider_sizers[i]->Add(wxlabels[i], 0, wxALIGN_CENTER_HORIZONTAL);
+		slider_sizers[i]->Add(KFrame::sliders[i], 1, wxALIGN_CENTER_HORIZONTAL | wxLEFT | wxRIGHT, 10);
+		control_sizer->Add(slider_sizers[i], 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
+	}
 
-	brightness_sizer->Add(txt2, 0, wxALIGN_CENTER_HORIZONTAL);
-	brightness_sizer->Add(KFrame::sliders[BRIGHTNESS], 1, wxALIGN_CENTER_HORIZONTAL | wxLEFT | wxRIGHT, 10);
-	control_sizer->Add(brightness_sizer, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
+	// Bind their slider event such taht OnSliderMove is triggered when slider is adjusted.
+	for (int i = 0; i < SLIDER_COUNT; i++) 
+	{
+		KFrame::sliders[i]->Bind(wxEVT_SLIDER, &KFrame::OnSliderMove, this);
+	}
 	
-	// Bind slider event handlers
-	KFrame::sliders[CONTRAST]->Bind(wxEVT_SLIDER, &KFrame::OnContrastSliderMove, this);
-	KFrame::sliders[BRIGHTNESS]->Bind(wxEVT_SLIDER, &KFrame::OnBrightnessSliderMove, this);
 	// Finally set panel's sizer to the control sizer
 	bottom_panel->SetSizer(control_sizer);
-
 
 	// -> Main sizer (container)
 	wxBoxSizer *sizer = new wxBoxSizer(wxVERTICAL);
@@ -294,22 +257,11 @@ void KFrame::OnExport(wxCommandEvent &WXUNUSED(e))
 	KMR_export(editor_preview->img_mat, path);
 }
 
-// These event handlers are here for when I want to make calls to the adjustment methods.
-// They will update the main image Mat.
-
-// Fired when the contrast slider is adjusted.
-void KFrame::OnContrastSliderMove(wxCommandEvent &WXUNUSED(e)) 
+// When any slider is adjusted, update the slider values.
+void KFrame::OnSliderMove(wxCommandEvent &WXUNUSED(e)) 
 {
-	// Set new slider value
-	int raw_obj_val = (int)KFrame::sliders[CONTRAST]->GetValue();
-	slider_values[CONTRAST] = ((float)raw_obj_val/100)*3;
-	std::cout << "contrast slider: " << slider_values[CONTRAST] << std::endl;
-}
-
-// Fired when the contrast slider is adjusted.
-void KFrame::OnBrightnessSliderMove(wxCommandEvent &WXUNUSED(e)) 
-{
-	// Set new slider value
+	int contrast_raw = (int)KFrame::sliders[CONTRAST]->GetValue();
+	slider_values[CONTRAST] = ((float)contrast_raw/100)*3;
 	slider_values[BRIGHTNESS] = (float)KFrame::sliders[BRIGHTNESS]->GetValue();
-	std::cout << "brightness slider: " << slider_values[BRIGHTNESS] << std::endl;
+	std::cout << "sliders (contrast, brightness): " << slider_values[CONTRAST] << " , " << slider_values[BRIGHTNESS] << std::endl;
 }

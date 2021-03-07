@@ -20,7 +20,6 @@ include(${wxWidgets_USE_FILE})
 # Source codes
 set(SRCS 
 	edit.cpp
-	options.cpp
 	main.cpp
 )
 

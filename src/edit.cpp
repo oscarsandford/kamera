@@ -1,6 +1,31 @@
-#include<editor.h>
+#include <kutils.h>
+#include <iostream>
 
 using namespace cv;
+
+// Read in and return a Mat image of the file located at path.
+Mat KMR_import(char *path) 
+{
+	std::cout << "Importing from " << path << std::endl;
+	Mat image = imread(path, 1);
+	if (!image.data) 
+	{
+		std::cout << "[!] No image data." << std::endl;
+		return Mat{};	
+	}
+	return image;
+}
+
+// Write a Mat image to the path defined by path.
+void KMR_export(Mat image, char *path) 
+{
+	std::cout << "Exporting to " << path << std::endl;
+	if (imwrite(path, image) == false) 
+	{
+		std::cout << "[!] Image could not be saved." << std::endl;
+	}
+	std::cout << "Image successfully saved!" << std::endl;
+}
 
 // Return an adjusted verion of the given Mat image. Right now we only adjust contrast (cts) and 
 // brightness (brt), where cts in [0,3.0] and brt in [1,100].
