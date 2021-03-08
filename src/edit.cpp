@@ -1,3 +1,6 @@
+// Kamera (KMR) functions to do with OpenCV Mat images.
+// Does a lot of the heavy lifting when it comes to loading, 
+// modifying, and saving images.
 #include <kutils.h>
 #include <iostream>
 

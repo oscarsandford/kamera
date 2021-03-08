@@ -1,9 +1,10 @@
 // This is the header for kamera main, includes "back-end" functions  
-// and definitions from the top-level header kutils.
+// and definitions from the top-level header kutils as well as Kamera's
+// control-scope variables and class definitions.
 #include <kutils.h>
 
 // Text for wx labels. Add strings here when adding extra sliders.
-char KMR_slider_labels[SLIDER_COUNT][20] = {
+const char KMR_slider_labels[SLIDER_COUNT][20] = {
 	"Contrast", "Brightness"
 };
 
@@ -16,6 +17,7 @@ class KFrame : public wxFrame
 	private:
 		void OnImport(wxCommandEvent &);
 		void OnExport(wxCommandEvent &);
+		void OnHelp(wxCommandEvent &);
 		void OnExit(wxCommandEvent &);
 		void OnSliderMove(wxCommandEvent &);
 		wxDECLARE_EVENT_TABLE();
@@ -28,7 +30,8 @@ class KPreview : public wxPanel
 		wxImage img_wxobj;
 		wxBitmap img_bitmap;
 		cv::Mat img_mat;
-		int width, height;
+		float width, height, ratio;
+		bool is_landscape;
 		void LoadNewPreviewImage(wxString file, wxBitmapType format);
 		void ForceRender();
 		wxDECLARE_EVENT_TABLE();

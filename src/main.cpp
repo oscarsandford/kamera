@@ -16,6 +16,7 @@ class Kamera : public wxApp
 wxBEGIN_EVENT_TABLE(KFrame, wxFrame)
 	EVT_MENU(1, KFrame::OnImport)
 	EVT_MENU(2, KFrame::OnExport)
+	EVT_MENU(wxID_HELP, KFrame::OnHelp)
 	EVT_MENU(wxID_EXIT, KFrame::OnExit)
 	EVT_SLIDER(wxID_ANY, KFrame::OnSliderMove)
 wxEND_EVENT_TABLE()
@@ -53,10 +54,26 @@ void KPreview::LoadNewPreviewImage(wxString file, wxBitmapType format)
 	// Prevents us looking for a file on startup.
 	if (strlen((const char *)file.mb_str(wxConvUTF8)) > 0) 
 	{
-		// TODO: check if file loaded correctly
 		img_wxobj.LoadFile(file, format);
-		KPreview::width = img_wxobj.GetWidth();
-		KPreview::height = img_wxobj.GetHeight();
+		if (!img_wxobj.IsOk()) 
+		{
+			wxLogError("Cannot load preview for %s", file);
+			return;
+		}
+		width = img_wxobj.GetWidth();
+		height = img_wxobj.GetHeight();
+
+		// Maximize width in this case, otherwise maximize height.
+		if (width > height) 
+		{
+			is_landscape = true;
+			ratio = height / width;
+		}
+		else 
+		{
+			is_landscape = false;
+			ratio = width / height;
+		}
 	}
 }
 
@@ -82,20 +99,28 @@ void KPreview::OnPreviewResize(wxSizeEvent &e)
 	e.Skip();
 }
 
-// Draw the image based on current state of preview_image_bitmap
+// Render the image. If it is landscape, make sure the width is maximal, otherwise 
+// make sure the height is maximal. Then scale the opposite side based on predefined ratio.
 void KPreview::RenderPreview(wxDC &dc) 
 {
 	if (img_wxobj.IsOk()) 
 	{
-		int new_width, new_height;
-		dc.GetSize(&new_width, &new_height);
-		// Scale and update bitmap if anything changed
-		// TODO: scale based on aspect ratio
-		if (new_width != width || new_height != height) 
+		// Current device context window size.
+		int dc_width, dc_height;
+		dc.GetSize(&dc_width, &dc_height);
+
+		// Resize
+		if (is_landscape && width != dc_width) 
 		{
-			img_bitmap = wxBitmap(img_wxobj.Scale(new_width, new_height));
-			width = new_width;
-			height = new_height;
+			width = dc_width;
+			height = width * ratio;
+			img_bitmap = wxBitmap(img_wxobj.Scale((int)width, (int)height));
+		}
+		else if (!is_landscape && height != dc_height)
+		{
+			height = dc_height;
+			width = height * ratio;
+			img_bitmap = wxBitmap(img_wxobj.Scale((int)width, (int)height));
 		}
 		dc.DrawBitmap(img_bitmap, 0, 0, false);
 	}
@@ -107,20 +132,20 @@ void KPreview::RenderPreview(wxDC &dc)
 KFrame::KFrame(const wxString &title, const wxPoint &pos, const wxSize &size) 
 	: wxFrame(nullptr, wxID_ANY, title, pos, size)
 {
-	// -> Top panel (where the image is previewed)
+	// Top panel (where the image is previewed)
 	wxPanel *top_panel = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(600,200));
 	top_panel->SetBackgroundColour(wxColor(150, 200, 150));
 
 	// Image preview
 	wxBoxSizer *preview_sizer = new wxBoxSizer(wxVERTICAL);
 	// Target our happy little global variable. Don't display anything initially.
-	editor_preview = new KPreview(this, _(""), wxBITMAP_TYPE_JPEG);
+	editor_preview = new KPreview(this, wxT(""), wxBITMAP_TYPE_JPEG);
 	// Change background color to same as panel so there isn't a visible difference.
 	editor_preview->SetBackgroundColour(wxColor(150, 200, 150));
 	preview_sizer->Add(editor_preview, 1, wxALIGN_CENTER_HORIZONTAL | wxEXPAND, 5);
 	top_panel->SetSizer(preview_sizer);
 
-	// -> Bottom panel (where the contrast, brightness, and other controls are)
+	// Bottom panel (where the contrast, brightness, and other controls are)
 	wxPanel *bottom_panel = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(600,200));
 	bottom_panel->SetBackgroundColour(wxColor(200, 150, 150));
 
@@ -147,7 +172,7 @@ KFrame::KFrame(const wxString &title, const wxPoint &pos, const wxSize &size)
 		control_sizer->Add(slider_sizers[i], 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
 	}
 
-	// Bind their slider event such taht OnSliderMove is triggered when slider is adjusted.
+	// Bind sliders' event such that OnSliderMove is triggered when any slider is adjusted.
 	for (int i = 0; i < SLIDER_COUNT; i++) 
 	{
 		KFrame::sliders[i]->Bind(wxEVT_SLIDER, &KFrame::OnSliderMove, this);
@@ -156,7 +181,7 @@ KFrame::KFrame(const wxString &title, const wxPoint &pos, const wxSize &size)
 	// Finally set panel's sizer to the control sizer
 	bottom_panel->SetSizer(control_sizer);
 
-	// -> Main sizer (container)
+	// Main sizer (container)
 	wxBoxSizer *sizer = new wxBoxSizer(wxVERTICAL);
 	// Add the main panels to the main container.
 	// (Top panel has twice proportion of bottom panel, margin 8.)
@@ -164,15 +189,16 @@ KFrame::KFrame(const wxString &title, const wxPoint &pos, const wxSize &size)
 	sizer->Add(bottom_panel, 1, wxEXPAND | wxALL, 8);
 	this->SetSizerAndFit(sizer);
 
-	// Menus and menu bar
+	// Menus
 	wxMenu *file_menu = new wxMenu;
 	file_menu->Append(1, "Import JPG");
 	file_menu->Append(2, "Export as JPG");
 	file_menu->AppendSeparator();
 	file_menu->Append(wxID_EXIT);
-
+	
 	wxMenu *help_menu = new wxMenu;
-	// TODO: make a help popup with some tips on how to do things.
+	help_menu->Append(wxID_HELP, "Getting Started");
+
 	wxMenuBar *menu_bar = new wxMenuBar;
 	menu_bar->Append(file_menu, "File");
 	menu_bar->Append(help_menu, "Help");
@@ -192,24 +218,26 @@ void KFrame::OnExit(wxCommandEvent &WXUNUSED(e))
 void KFrame::OnImport(wxCommandEvent &WXUNUSED(e))
 {
 	// Open dialogue for user to select a file to import.
-	wxFileDialog importFileDialog(this, 
-		_("Open JPG file"), "", "", "JPG files (*.jpg)|*.jpg", 
+	wxFileDialog *import_dialog = new wxFileDialog(this, 
+		wxT("Open JPG image"), "", "", "JPG files (*.jpg)|*.jpg", 
 		wxFD_OPEN | wxFD_FILE_MUST_EXIST
 	);
-	if (importFileDialog.ShowModal() == wxID_CANCEL) 
+	if (import_dialog->ShowModal() == wxID_CANCEL) 
 	{
 		return;
 	}
 	// Check the file path defined by the user in the dialog
-	wxFileInputStream input_stream(importFileDialog.GetPath());
+	wxFileInputStream input_stream(import_dialog->GetPath());
 	if (!input_stream.IsOk()) 
 	{
-		wxLogError("Cannot open %s", importFileDialog.GetPath());
+		wxLogError("Cannot open %s", import_dialog->GetPath());
 		return;
 	}
-	// Derive the C string of the path. Might not be the safest..
+	// Derive the C string of the path. Figure out a safer solution than strncpy.
 	char path[1024];
-	strncpy(path, (const char *)importFileDialog.GetPath().mb_str(wxConvUTF8), 1023);
+	strncpy(path, (const char *)import_dialog->GetPath().mb_str(wxConvUTF8), 1023);
+
+	import_dialog->Destroy();
 
 	// Call function to create the image Mat by path.
 	editor_preview->img_mat = KMR_import(path);
@@ -231,30 +259,53 @@ void KFrame::OnImport(wxCommandEvent &WXUNUSED(e))
 // Fired when "Export" selected in "File" menu dropdown.
 void KFrame::OnExport(wxCommandEvent &WXUNUSED(e))
 {
+	// Don't export if the current preview image is corrupt or missing.
+	if (!editor_preview->img_wxobj.IsOk()) 
+	{
+		wxLogError("Please import an image first.");
+		return;
+	}
 	// Open dialogue for user to export current file.
-	wxFileDialog exportFileDialog(this, 
-		_("Save image as JPG"), "", "", "JPG files (*.jpg)|*.jpg", 
+	wxFileDialog *export_dialog = new wxFileDialog(this, 
+		"Save image as JPG", "", "", "JPG files (*.jpg)|*.jpg", 
 		wxFD_SAVE | wxFD_OVERWRITE_PROMPT
 	);
-	if (exportFileDialog.ShowModal() == wxID_CANCEL) 
+	if (export_dialog->ShowModal() == wxID_CANCEL) 
 	{
 		return;
 	}
 	// Check the file path defined by the user in the dialog.
-	wxFileOutputStream output_stream(exportFileDialog.GetPath());
+	wxFileOutputStream output_stream(export_dialog->GetPath());
 	if (!output_stream.IsOk()) 
 	{
-		wxLogError("Cannot save to %s", exportFileDialog.GetPath());
+		wxLogError("Cannot save to %s", export_dialog->GetPath());
 		return;
 	}
-	// Derive the C string of the path. Might not be the safest..
+	// Derive the C string of the path. Figure out a safer solution than strncpy.
 	char path[1024];
-	strncpy(path, (const char *)exportFileDialog.GetPath().mb_str(wxConvUTF8), 1023);
+	strncpy(path, (const char *)export_dialog->GetPath().mb_str(wxConvUTF8), 1023);
+
+	export_dialog->Destroy();
 
 	// Update the imported Mat object based on current slider values.
 	editor_preview->img_mat = KMR_adjust(editor_preview->img_mat, slider_values);
 	// Call function to export the image by path.
 	KMR_export(editor_preview->img_mat, path);
+}
+
+// Simple dialog with some starter instructions, from the Help dropdown menu.
+void KFrame::OnHelp(wxCommandEvent &WXUNUSED(e)) 
+{
+	wxMessageDialog *help_dialog = new wxMessageDialog(this, 
+		"Import an image by clicking File -> Import JPG.\n"\
+		"Then adjust sliders to desired values.\n\n"\
+		"When ready, save by navigating to File -> Export as JPG",
+		"Getting Started", wxOK
+	);
+	if (help_dialog->ShowModal() == wxID_CANCEL) 
+	{
+		return;
+	}
 }
 
 // When any slider is adjusted, update the slider values.
