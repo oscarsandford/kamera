@@ -5,35 +5,34 @@ project( kamera LANGUAGES CXX )
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# ExternalProject base
-set_property(DIRECTORY PROPERTY EP_BASE ${CMAKE_BINARY_DIR}/subprojects)
-# Staged files (i.e for installing deps)
-set(STAGED_INSTALL_PREFIX ${CMAKE_BINARY_DIR}/staged)
+# Required third party libraries.
+add_subdirectory(external/wxwidgets)
+add_subdirectory(external/opencv)
 
-# For required third party libraries
-add_subdirectory(libraries)
-
-
-include(ExternalProject)
-ExternalProject_Add(${PROJECT_NAME}_core
-	DEPENDS 
-		wxWidgets_lib
-		OpenCV_lib
-	SOURCE_DIR 
-		${CMAKE_CURRENT_SOURCE_DIR}/src
-	CMAKE_ARGS
-		-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-		-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
-		-DCMAKE_CXX_STANDARD=${CMAKE_CXX_STANDARD}
-		-DCMAKE_CXX_EXTENSIONS=${CMAKE_CXX_EXTENSIONS}
-		-DCMAKE_CXX_STANDARD_REQUIRED=${CMAKE_CXX_STANDARD_REQUIRED}
-		-DwxWidgets_ROOT_DIR=${wxWidgets_ROOT_DIR}
-		-DENV_WX_CONFIG=${ENV_WX_CONFIG}
-	CMAKE_CACHE_ARGS
-		-DCMAKE_CXX_FLAGS:STRING=${CMAKE_CXX_FLAGS}
-		-DCMAKE_PREFIX_PATH:PATH=${CMAKE_PREFIX_PATH}
-	BUILD_ALWAYS
-		1
-	INSTALL_COMMAND
-		""
+# Source codes.
+set(SRCS 
+	src/edit.cpp
+	src/main.cpp
 )
+
+# Add platform-specific bundles.
+if (APPLE)
+	add_executable(kamera MACOSX_BUNDLE ${SRCS})
+else ()
+	# Win32 needed for Windows. Other OS will simply ignore it.
+	add_executable(kamera WIN32 ${SRCS})
+endif()
+
+target_include_directories(${PROJECT_NAME} 
+	PUBLIC include
+	PUBLIC external/wxwidgets/include
+	PUBLIC external/opencv/include
+)
+
+target_link_directories(${PROJECT_NAME} 
+	PRIVATE src
+	PRIVATE external/wxwidgets/src
+	PRIVATE external/opencv/src
+)
+
+target_link_libraries(${PROJECT_NAME} SRCS opencv wxwidgets)
