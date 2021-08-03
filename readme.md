@@ -8,6 +8,7 @@ A simple, minimalist, cross-platform photo editor built in C++ with [wxWidgets](
 4. Authors
 <hr>
 
+
 ## Requirements
 Note that these are **untested suggestions** for achieving the requirements to run this application in a development environment of your choosing.
 
@@ -36,8 +37,6 @@ $ chmod 777 configure.sh
 $ ./configure.sh
 ```
 <hr>
-
-Added `external/wxwidgets/include/wx/setup.h` with content copied from `external/wxwidgets/setup.h.in`.
 
 
 ## Authors

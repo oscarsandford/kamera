@@ -27,6 +27,8 @@ add_subdirectory(external/wxwidgets)
 target_include_directories(${PROJECT_NAME} 
 	PUBLIC src
 	PUBLIC external/opencv/include
+	# These next lines are my attempt at retrieving all the include 
+	# subdirectories in modules. Will come back to this. 
 	PUBLIC external/opencv/modules/core/include
 	PUBLIC external/opencv/modules/calib3d/include
 	PUBLIC external/opencv/modules/features2d/include
@@ -41,13 +43,27 @@ target_include_directories(${PROJECT_NAME}
 	PUBLIC external/opencv/modules/photo/include
 	PUBLIC external/opencv/modules/stitching/include
 	PUBLIC external/opencv/modules/video/include
+	# Build dir has an opencv2 folder with opencv2_modules.hpp that we need.
 	PUBLIC ${CMAKE_CURRENT_BINARY_DIR}
 	PUBLIC external/wxwidgets/include
+	# This next line is for setup.h, which is found in the build folder. Might not need this?
+	# PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/lib/wx/include/gtk3-unicode-3.1
 )
 
-target_link_directories(${PROJECT_NAME} 
-	PRIVATE src
-)
-
+# target_link_directories(${PROJECT_NAME} 
+# 	PRIVATE src
+# )
 set_target_properties(kamera_lib PROPERTIES LINKER_LANGUAGE CXX)
-target_link_libraries(${PROJECT_NAME} LINK_PUBLIC kamera_lib opencv_core)
+
+target_link_libraries(${PROJECT_NAME} 
+	kamera_lib 
+	opencv_core
+	wxcore
+	wxbase
+	wxnet
+	# wx::net
+	# wx::core 
+	# wx::base
+)
+
+# TODO: need to figure out jconfig.h
