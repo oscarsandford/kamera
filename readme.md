@@ -1,5 +1,5 @@
 # Kamera Studio
-A simple, minimalist, cross-platform photo editor built in C++ with [wxWidgets](https://www.wxwidgets.org) and [OpenCV](https://opencv.org). **This project is currently being refactored to work with these libraries as submodules.**
+A simple, minimalist, cross-platform photo editor built in C++ with [wxWidgets](https://www.wxwidgets.org) and [OpenCV](https://opencv.org). **This project is currently being refactored to work with these libraries as submodules. This is a terrible idea.**
 
 ## Table of Contents
 1. Requirements
