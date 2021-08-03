@@ -1,6 +1,7 @@
 // Top level header.
-#include <opencv2/opencv.hpp>
 #include <wx/wx.h>
+#include <wx/image.h>
+#include <opencv2/opencv.hpp>
 
 #define SLIDER_COUNT 2
 #define CONTRAST 0
